@@ -87,7 +87,9 @@ class Camera:
 
     def draw_scene(self, screen: Surface) -> None:
         for line in self.lines:
-            self.__project_line(line, screen)
+            clipped_line = self.__clip_line(line)
+            if clipped_line is not None:
+                self.__project_line(clipped_line, screen)
 
     def __rotate_lines(self, rotation_matrix: np.ndarray) -> None:
         for line in self.lines:
@@ -133,6 +135,26 @@ class Camera:
             [0, 0, - (far + near) / (far - near), (-2 * far * near) / (far - near)],
             [0, 0, -1, 0]
         ])
+    
+    def __clip_line(self, line: Line) -> Line:
+        if line.v1.z >= self.near and line.v2.z >= self.near:
+            return line
+        
+        if line.v1.z < self.near and line.v2.z < self.near:
+            return None
+        
+        intersection_point = self.__calculate_intersection_point(line)
+        if line.v1.z < self.near:
+            return Line(intersection_point, line.v2)
+        else:
+            return Line(line.v1, intersection_point)
+    
+    def __calculate_intersection_point(self, line: Line) -> Vertex:
+        t = (self.near - line.v1.z) / (line.v2.z - line.v1.z)
+        intersection_point = [line.v1.x + t * (line.v2.x - line.v1.x),
+                            line.v1.y + t * (line.v2.y - line.v1.y),
+                            self.near]
+        return Vertex(intersection_point[0], intersection_point[1], intersection_point[2])
     
     def __project_line(self, line: Line, screen: Surface) -> None:
         point_v1 = self.__project_point(line.v1)
