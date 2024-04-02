@@ -1,11 +1,13 @@
 import numpy as np
-from math import tan
+from math import tan, sin, cos
 import pygame
 from pygame import Surface
 from vertex import Vertex
 from line import Line
 
 WHITE_COLOR = (255, 255, 255)
+MOVE_STEP = 0.1
+ROTATE_STEP = 0.1
 
 class Camera:
     def __init__(self, lines: list[Line], fov: float, near: float, far: float, width: int, height: int, scaling_factor: int = 100) -> None:
@@ -20,9 +22,100 @@ class Camera:
         self.screen_center = [width / 2, height / 2]
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, fov, near, far)
 
+    def move_up(self):
+        for line in self.lines:
+            line.v1.y += MOVE_STEP
+            line.v2.y += MOVE_STEP
+
+    def move_down(self):
+        for line in self.lines:
+            line.v1.y -= MOVE_STEP
+            line.v2.y -= MOVE_STEP
+
+    def move_left(self):
+        for line in self.lines:
+            line.v1.x -= MOVE_STEP
+            line.v2.x -= MOVE_STEP
+
+    def move_right(self):
+        for line in self.lines:
+            line.v1.x += MOVE_STEP
+            line.v2.x += MOVE_STEP
+
+    def move_forward(self):
+        for line in self.lines:
+            line.v1.z -= MOVE_STEP
+            line.v2.z -= MOVE_STEP
+
+    def move_backward(self):
+        for line in self.lines:
+            line.v1.z += MOVE_STEP
+            line.v2.z += MOVE_STEP
+
+    def rotate_x_positive(self):
+        rotation_matrix = self.__create_rotate_x_matrix(ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
+    def rotate_x_negative(self):
+        rotation_matrix = self.__create_rotate_x_matrix(-ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
+    def rotate_y_positive(self):
+        rotation_matrix = self.__create_rotate_y_matrix(ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
+    def rotate_y_negative(self):
+        rotation_matrix = self.__create_rotate_y_matrix(-ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
+    def rotate_z_positive(self):
+        rotation_matrix = self.__create_rotate_z_matrix(ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
+    def rotate_z_negative(self):
+        rotation_matrix = self.__create_rotate_z_matrix(-ROTATE_STEP)
+        self.__rotate_lines(rotation_matrix)
+
     def draw_scene(self, screen: Surface) -> None:
         for line in self.lines:
             self.__project_line(line, screen)
+
+    def __rotate_lines(self, rotation_matrix: np.ndarray) -> None:
+        for line in self.lines:
+            self.__rotate_vertex(line.v1, rotation_matrix)
+            self.__rotate_vertex(line.v2, rotation_matrix)
+
+    def __rotate_vertex(self, vertex: Vertex, rotation_matrix: np.ndarray) -> None:
+        v = vertex.to_vector()
+        rotated_v = rotation_matrix @ v
+        normalized_v = self.__normalize_vector(rotated_v)
+        vertex.x = normalized_v[0]
+        vertex.y = normalized_v[1]
+        vertex.z = normalized_v[2]
+
+    def __create_rotate_x_matrix(self, angle: float) -> np.ndarray:
+        return np.array([
+            [1, 0, 0, 0],
+            [0, cos(angle), -sin(angle), 0],
+            [0, sin(angle), cos(angle), 0],
+            [0, 0, 0, 1]
+        ])
+    
+    def __create_rotate_y_matrix(self, angle: float) -> np.ndarray:
+        return np.array([
+            [cos(angle), 0, sin(angle), 0],
+            [0, 1, 0, 0],
+            [-sin(angle), 0, cos(angle), 0],
+            [0, 0, 0, 1]
+        ])
+    
+    def __create_rotate_z_matrix(self, angle: float) -> np.ndarray:
+        return np.array([
+            [cos(angle), -sin(angle), 0, 0],
+            [sin(angle), cos(angle), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
 
     def __create_projection_matrix(self, aspect_ratio: float, fov: float, near: float, far: float) -> np.ndarray:
         return np.array([
