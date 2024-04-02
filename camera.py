@@ -8,6 +8,7 @@ from line import Line
 WHITE_COLOR = (255, 255, 255)
 MOVE_STEP = 0.1
 ROTATE_STEP = 0.1
+ZOOM_STEP = 0.1
 
 class Camera:
     def __init__(self, lines: list[Line], fov: float, near: float, far: float, width: int, height: int, scaling_factor: int = 100) -> None:
@@ -75,6 +76,14 @@ class Camera:
     def rotate_z_negative(self):
         rotation_matrix = self.__create_rotate_z_matrix(-ROTATE_STEP)
         self.__rotate_lines(rotation_matrix)
+
+    def zoom_in(self):
+        self.fov -= ZOOM_STEP
+        self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, self.fov, self.near, self.far)
+
+    def zoom_out(self):
+        self.fov += ZOOM_STEP
+        self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, self.fov, self.near, self.far)
 
     def draw_scene(self, screen: Surface) -> None:
         for line in self.lines:

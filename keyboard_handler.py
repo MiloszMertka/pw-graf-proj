@@ -38,3 +38,7 @@ class KeyboardHandler:
                     self.camera.rotate_z_positive()
                 if event.key == pygame.K_e:
                     self.camera.rotate_z_negative()
+                if event.key == pygame.K_r:
+                    self.camera.zoom_in()
+                if event.key == pygame.K_f:
+                    self.camera.zoom_out()
