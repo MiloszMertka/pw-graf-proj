@@ -13,7 +13,7 @@ fov = radians(45)
 near = 0.01
 far = 1000
 
-file_reader = FileReader("cube.txt")
+file_reader = FileReader("scene.txt")
 polygons = file_reader.read()
 camera = Camera(polygons, fov, near, far, WIDTH, HEIGHT)
 keyboard_handler = KeyboardHandler(camera)
