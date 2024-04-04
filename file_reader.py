@@ -1,16 +1,16 @@
 from vertex import Vertex
-from line import Line
+from polygon import Polygon
 
 VERTEX_PREFIX = 'v '
-LINE_PREFIX = 'l '
+POLYGON_PREFIX = 'p '
 
 class FileReader:
     def __init__(self, filename: str) -> None:
         self.filename = filename
 
-    def read(self) -> list[Line]:
-        lines: list[Line] = []
+    def read(self) -> list[Polygon]:
         vertices: list[Vertex] = []
+        polygons: list[Polygon] = []
         with open(self.filename, 'r') as file:
             for line in file:
                 if line.startswith(VERTEX_PREFIX):
@@ -20,10 +20,12 @@ class FileReader:
                     z = float(coordinates[3])
                     vertex = Vertex(x, y, z)
                     vertices.append(vertex)
-                elif line.startswith(LINE_PREFIX):
+                elif line.startswith(POLYGON_PREFIX):
                     indices = line.split()
-                    i = int(indices[1]) - 1
-                    j = int(indices[2]) - 1
-                    lines.append(Line(vertices[i], vertices[j]))
-        return lines
+                    polygon_vertices: list[Vertex] = []
+                    for index in indices[1:]:
+                        i = int(index) - 1
+                        polygon_vertices.append(vertices[i])
+                    polygons.append(Polygon(polygon_vertices))
+        return polygons
         

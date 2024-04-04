@@ -3,7 +3,7 @@ from math import tan, sin, cos
 import pygame
 from pygame import Surface
 from vertex import Vertex
-from line import Line
+from polygon import Polygon
 
 WHITE_COLOR = (255, 255, 255)
 MOVE_STEP = 0.1
@@ -11,8 +11,8 @@ ROTATE_STEP = 0.1
 ZOOM_STEP = 0.1
 
 class Camera:
-    def __init__(self, lines: list[Line], fov: float, near: float, far: float, width: int, height: int, scaling_factor: int = 100) -> None:
-        self.lines = lines
+    def __init__(self, polygons: list[Polygon], fov: float, near: float, far: float, width: int, height: int, scaling_factor: int = 100) -> None:
+        self.polygons = polygons
         self.fov = fov
         self.near = near
         self.far = far
@@ -24,58 +24,58 @@ class Camera:
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, fov, near, far)
 
     def move_up(self):
-        for line in self.lines:
-            line.v1.y += MOVE_STEP
-            line.v2.y += MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.y += MOVE_STEP
 
     def move_down(self):
-        for line in self.lines:
-            line.v1.y -= MOVE_STEP
-            line.v2.y -= MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.y -= MOVE_STEP
 
     def move_left(self):
-        for line in self.lines:
-            line.v1.x -= MOVE_STEP
-            line.v2.x -= MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.x -= MOVE_STEP
 
     def move_right(self):
-        for line in self.lines:
-            line.v1.x += MOVE_STEP
-            line.v2.x += MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.x += MOVE_STEP
 
     def move_forward(self):
-        for line in self.lines:
-            line.v1.z -= MOVE_STEP
-            line.v2.z -= MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.z -= MOVE_STEP
 
     def move_backward(self):
-        for line in self.lines:
-            line.v1.z += MOVE_STEP
-            line.v2.z += MOVE_STEP
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                vertex.z += MOVE_STEP
 
     def rotate_x_positive(self):
         rotation_matrix = self.__create_rotate_x_matrix(ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def rotate_x_negative(self):
         rotation_matrix = self.__create_rotate_x_matrix(-ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def rotate_y_positive(self):
         rotation_matrix = self.__create_rotate_y_matrix(ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def rotate_y_negative(self):
         rotation_matrix = self.__create_rotate_y_matrix(-ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def rotate_z_positive(self):
         rotation_matrix = self.__create_rotate_z_matrix(ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def rotate_z_negative(self):
         rotation_matrix = self.__create_rotate_z_matrix(-ROTATE_STEP)
-        self.__rotate_lines(rotation_matrix)
+        self.__rotate_polygons(rotation_matrix)
 
     def zoom_in(self):
         self.fov -= ZOOM_STEP
@@ -86,15 +86,22 @@ class Camera:
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, self.fov, self.near, self.far)
 
     def draw_scene(self, screen: Surface) -> None:
-        for line in self.lines:
-            clipped_line = self.__clip_line(line)
-            if clipped_line is not None:
-                self.__project_line(clipped_line, screen)
+        for polygon in self.polygons:
+            clipped_polygon = self.__clip_polygon(polygon)
+            points = []
+            for vertex in clipped_polygon.vertices:
+                if vertex is None:
+                    continue
+                point = self.__project_point(vertex)
+                self.__apply_scaling_factor(point)
+                self.__move_to_screen_center(point)
+                points.append(point)
+            self.__draw_polygon(points, screen)
 
-    def __rotate_lines(self, rotation_matrix: np.ndarray) -> None:
-        for line in self.lines:
-            self.__rotate_vertex(line.v1, rotation_matrix)
-            self.__rotate_vertex(line.v2, rotation_matrix)
+    def __rotate_polygons(self, rotation_matrix: np.ndarray) -> None:
+        for polygon in self.polygons:
+            for vertex in polygon.vertices:
+                self.__rotate_vertex(vertex, rotation_matrix)
 
     def __rotate_vertex(self, vertex: Vertex, rotation_matrix: np.ndarray) -> None:
         v = vertex.to_vector()
@@ -136,34 +143,32 @@ class Camera:
             [0, 0, -1, 0]
         ])
     
-    def __clip_line(self, line: Line) -> Line:
-        if line.v1.z >= self.near and line.v2.z >= self.near:
-            return line
-        
-        if line.v1.z < self.near and line.v2.z < self.near:
-            return None
-        
-        intersection_point = self.__calculate_intersection_point(line)
-        if line.v1.z < self.near:
-            return Line(intersection_point, line.v2)
-        else:
-            return Line(line.v1, intersection_point)
+    def __clip_polygon(self, polygon: Polygon) -> Polygon:
+        clipped_vertices = []
+        for i in range(len(polygon.vertices)):
+            v1_index = i
+            v2_index = (i + 1) % len(polygon.vertices)
+            v1 = polygon.vertices[v1_index]
+            v2 = polygon.vertices[v2_index]
+            if v1.z >= self.near and v2.z >= self.near:
+                clipped_vertices.append(v2)
+            elif v1.z < self.near and v2.z < self.near:
+                continue
+            elif v1.z < self.near and v2.z >= self.near:
+                intersection_point = self.__calculate_intersection_point(v1, v2)
+                clipped_vertices.append(intersection_point)
+                clipped_vertices.append(v2)
+            elif v1.z >= self.near and v2.z < self.near:
+                intersection_point = self.__calculate_intersection_point(v1, v2)
+                clipped_vertices.append(intersection_point)
+        return Polygon(clipped_vertices)
     
-    def __calculate_intersection_point(self, line: Line) -> Vertex:
-        t = (self.near - line.v1.z) / (line.v2.z - line.v1.z)
-        intersection_point = [line.v1.x + t * (line.v2.x - line.v1.x),
-                            line.v1.y + t * (line.v2.y - line.v1.y),
+    def __calculate_intersection_point(self, v1: Vertex, v2: Vertex) -> Vertex:
+        t = (self.near - v1.z) / (v2.z - v1.z)
+        intersection_point = [v1.x + t * (v2.x - v1.x),
+                            v1.y + t * (v2.y - v1.y),
                             self.near]
         return Vertex(intersection_point[0], intersection_point[1], intersection_point[2])
-    
-    def __project_line(self, line: Line, screen: Surface) -> None:
-        point_v1 = self.__project_point(line.v1)
-        point_v2 = self.__project_point(line.v2)
-        self.__apply_scaling_factor(point_v1)
-        self.__apply_scaling_factor(point_v2)
-        self.__move_to_screen_center(point_v1)
-        self.__move_to_screen_center(point_v2)
-        self.__draw_line(point_v1[:2], point_v2[:2], screen)
 
     def __project_point(self, point: Vertex) -> np.ndarray:
         vector = point.to_vector()
@@ -184,5 +189,7 @@ class Camera:
     def __move_to_screen_center(self, point: np.ndarray) -> None:
         point += self.screen_center
 
-    def __draw_line(self, start_point: np.ndarray, end_point: np.ndarray, screen: Surface) -> None:
-        pygame.draw.line(screen, WHITE_COLOR, start_point, end_point)
+    def __draw_polygon(self, points: list[np.ndarray], screen: Surface) -> None:
+        if len(points) < 2:
+            return
+        pygame.draw.polygon(screen, WHITE_COLOR, points, 1)

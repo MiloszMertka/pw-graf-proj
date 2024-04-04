@@ -14,8 +14,8 @@ near = 0.01
 far = 1000
 
 file_reader = FileReader("cube.txt")
-lines = file_reader.read()
-camera = Camera(lines, fov, near, far, WIDTH, HEIGHT)
+polygons = file_reader.read()
+camera = Camera(polygons, fov, near, far, WIDTH, HEIGHT)
 keyboard_handler = KeyboardHandler(camera)
 clock = pygame.time.Clock()
 
