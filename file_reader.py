@@ -23,9 +23,13 @@ class FileReader:
                 elif line.startswith(POLYGON_PREFIX):
                     indices = line.split()
                     polygon_vertices: list[Vertex] = []
-                    for index in indices[1:]:
+                    raw_color = indices[1]
+                    color = tuple(map(int, raw_color.split(',')))
+                    for index in indices[2:]:
                         i = int(index) - 1
                         polygon_vertices.append(vertices[i])
-                    polygons.append(Polygon(polygon_vertices))
+                    polygon = Polygon(polygon_vertices)
+                    polygon.set_color(color)
+                    polygons.append(polygon)
         return polygons
         

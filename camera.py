@@ -1,11 +1,11 @@
 import numpy as np
 from math import tan, sin, cos
+from functools import cmp_to_key
 import pygame
-from pygame import Surface
+from pygame import Surface, Rect
 from vertex import Vertex
 from polygon import Polygon
 
-WHITE_COLOR = (255, 255, 255)
 MOVE_STEP = 0.1
 ROTATE_STEP = 0.1
 ZOOM_STEP = 0.1
@@ -22,71 +22,79 @@ class Camera:
         self.aspect_ratio = width / height
         self.screen_center = [width / 2, height / 2]
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, fov, near, far)
+        self.occlussion_enabled = True
 
-    def move_up(self):
+    def toggle_occlusion(self) -> None:
+        self.occlussion_enabled = not self.occlussion_enabled
+
+    def move_up(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.y += MOVE_STEP
 
-    def move_down(self):
+    def move_down(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.y -= MOVE_STEP
 
-    def move_left(self):
+    def move_left(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.x -= MOVE_STEP
 
-    def move_right(self):
+    def move_right(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.x += MOVE_STEP
 
-    def move_forward(self):
+    def move_forward(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.z -= MOVE_STEP
 
-    def move_backward(self):
+    def move_backward(self) -> None:
         for polygon in self.polygons:
             for vertex in polygon.vertices:
                 vertex.z += MOVE_STEP
 
-    def rotate_x_positive(self):
+    def rotate_x_positive(self) -> None:
         rotation_matrix = self.__create_rotate_x_matrix(ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def rotate_x_negative(self):
+    def rotate_x_negative(self) -> None:
         rotation_matrix = self.__create_rotate_x_matrix(-ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def rotate_y_positive(self):
+    def rotate_y_positive(self) -> None:
         rotation_matrix = self.__create_rotate_y_matrix(ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def rotate_y_negative(self):
+    def rotate_y_negative(self) -> None:
         rotation_matrix = self.__create_rotate_y_matrix(-ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def rotate_z_positive(self):
+    def rotate_z_positive(self) -> None:
         rotation_matrix = self.__create_rotate_z_matrix(ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def rotate_z_negative(self):
+    def rotate_z_negative(self) -> None:
         rotation_matrix = self.__create_rotate_z_matrix(-ROTATE_STEP)
         self.__rotate_polygons(rotation_matrix)
 
-    def zoom_in(self):
+    def zoom_in(self) -> None:
         self.fov -= ZOOM_STEP
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, self.fov, self.near, self.far)
 
-    def zoom_out(self):
+    def zoom_out(self) -> None:
         self.fov += ZOOM_STEP
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, self.fov, self.near, self.far)
 
     def draw_scene(self, screen: Surface) -> None:
-        for polygon in self.polygons:
+        polygons_to_draw = self.polygons[:]
+        if self.occlussion_enabled:
+            polygons_to_draw.sort(key=lambda polygon: polygon.get_z_centroid(), reverse=True)
+            polygons_to_draw.sort(key=cmp_to_key(self.__compare_polygons_occlusion))
+        for polygon in polygons_to_draw:
             clipped_polygon = self.__clip_polygon(polygon)
             points = []
             for vertex in clipped_polygon.vertices:
@@ -96,7 +104,7 @@ class Camera:
                 self.__apply_scaling_factor(point)
                 self.__move_to_screen_center(point)
                 points.append(point)
-            self.__draw_polygon(points, screen)
+            self.__draw_polygon(points, screen, polygon.color)
 
     def __rotate_polygons(self, rotation_matrix: np.ndarray) -> None:
         for polygon in self.polygons:
@@ -189,7 +197,48 @@ class Camera:
     def __move_to_screen_center(self, point: np.ndarray) -> None:
         point += self.screen_center
 
-    def __draw_polygon(self, points: list[np.ndarray], screen: Surface) -> None:
+    def __draw_polygon(self, points: list[np.ndarray], screen: Surface, color: tuple[int, int, int]) -> None:
         if len(points) < 2:
             return
-        pygame.draw.polygon(screen, WHITE_COLOR, points, 1)
+        
+        line_width = 1
+        if self.occlussion_enabled:
+            line_width = 0
+
+        pygame.draw.polygon(screen, color, points, line_width)
+
+    def __compare_polygons_occlusion(self, Q: Polygon, P: Polygon) -> int:
+        if not self.__do_rects_intersect(Q.get_bounding_rectangle(), P.get_bounding_rectangle()):
+            return 0
+        
+        camera_position = Vertex(0, 0, 0)
+
+        is_p_on_the_other_side = True
+        q_plane = Q.get_plane()
+        camera_side = np.dot(q_plane, camera_position.to_vector())
+        for vertex in P.vertices:
+            vertex_side = np.dot(q_plane, vertex.to_vector())
+            if vertex_side * camera_side > 0:
+                is_p_on_the_other_side = False
+                break
+        if is_p_on_the_other_side:
+            return 1
+
+        is_q_on_the_other_side = True
+        p_plane = P.get_plane()
+        camera_side = np.dot(p_plane, camera_position.to_vector())
+        for vertex in Q.vertices:
+            vertex_side = np.dot(p_plane, vertex.to_vector())
+            if vertex_side * camera_side > 0:
+                is_q_on_the_other_side = False
+                break
+        if is_q_on_the_other_side:
+            return -1
+
+        return 0
+
+    def __do_rects_intersect(self, rect1: Rect, rect2: Rect) -> bool:
+        return not (rect1.right < rect2.left or
+                    rect1.left > rect2.right or
+                    rect1.bottom < rect2.top or
+                    rect1.top > rect2.bottom)

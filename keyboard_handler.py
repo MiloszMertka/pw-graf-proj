@@ -42,3 +42,5 @@ class KeyboardHandler:
                     self.camera.zoom_in()
                 if event.key == pygame.K_f:
                     self.camera.zoom_out()
+                if event.key == pygame.K_LSHIFT:
+                    self.camera.toggle_occlusion()
