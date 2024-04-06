@@ -1,15 +1,15 @@
 import numpy as np
 from math import tan, sin, cos
-from functools import cmp_to_key
 import pygame
-from pygame import Surface, Rect
+from pygame import Surface
 from vertex import Vertex
 from polygon import Polygon
-from bsp_node import BSPNode, build_bsp_tree, traverse_bsp_tree
+from bsp_tree import BSPTree
 
 MOVE_STEP = 0.1
 ROTATE_STEP = 0.1
 ZOOM_STEP = 0.1
+CAMERA_POSITION = Vertex(0, 0, 0)
 
 class Camera:
     def __init__(self, polygons: list[Polygon], fov: float, near: float, far: float, width: int, height: int, scaling_factor: int = 100) -> None:
@@ -24,7 +24,7 @@ class Camera:
         self.screen_center = [width / 2, height / 2]
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, fov, near, far)
         self.occlussion_enabled = True
-        self.bsp_tree = build_bsp_tree(polygons)
+        self.bsp_tree = BSPTree(polygons)
 
     def toggle_occlusion(self) -> None:
         self.occlussion_enabled = not self.occlussion_enabled
@@ -94,11 +94,7 @@ class Camera:
     def draw_scene(self, screen: Surface) -> None:
         polygons_to_draw = self.polygons[:]
         if self.occlussion_enabled:
-            sorted_polygons = []
-            traverse_bsp_tree(self.bsp_tree, Vertex(0, 0, 0), sorted_polygons)
-            polygons_to_draw = sorted_polygons
-            # polygons_to_draw.sort(key=lambda polygon: polygon.get_z_centroid(), reverse=True)
-            # polygons_to_draw.sort(key=cmp_to_key(self.__compare_polygons_occlusion))
+            polygons_to_draw = self.bsp_tree.traverse(CAMERA_POSITION)
         for polygon in polygons_to_draw:
             clipped_polygon = self.__clip_polygon(polygon)
             points = []
@@ -211,39 +207,3 @@ class Camera:
             line_width = 0
 
         pygame.draw.polygon(screen, color, points, line_width)
-
-    def __compare_polygons_occlusion(self, Q: Polygon, P: Polygon) -> int:
-        if not self.__do_rects_intersect(Q.get_bounding_rectangle(), P.get_bounding_rectangle()):
-            return 0
-        
-        camera_position = Vertex(0, 0, 0)
-
-        is_p_on_the_other_side = True
-        q_plane = Q.get_plane()
-        camera_side = np.dot(q_plane, camera_position.to_vector())
-        for vertex in P.vertices:
-            vertex_side = np.dot(q_plane, vertex.to_vector())
-            if vertex_side * camera_side > 0:
-                is_p_on_the_other_side = False
-                break
-        if is_p_on_the_other_side:
-            return 1
-
-        is_q_on_the_other_side = True
-        p_plane = P.get_plane()
-        camera_side = np.dot(p_plane, camera_position.to_vector())
-        for vertex in Q.vertices:
-            vertex_side = np.dot(p_plane, vertex.to_vector())
-            if vertex_side * camera_side > 0:
-                is_q_on_the_other_side = False
-                break
-        if is_q_on_the_other_side:
-            return -1
-
-        return 0
-
-    def __do_rects_intersect(self, rect1: Rect, rect2: Rect) -> bool:
-        return not (rect1.right < rect2.left or
-                    rect1.left > rect2.right or
-                    rect1.bottom < rect2.top or
-                    rect1.top > rect2.bottom)
