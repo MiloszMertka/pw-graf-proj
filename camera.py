@@ -5,6 +5,7 @@ import pygame
 from pygame import Surface, Rect
 from vertex import Vertex
 from polygon import Polygon
+from bsp_node import BSPNode, build_bsp_tree, traverse_bsp_tree
 
 MOVE_STEP = 0.1
 ROTATE_STEP = 0.1
@@ -23,6 +24,7 @@ class Camera:
         self.screen_center = [width / 2, height / 2]
         self.projection_matrix = self.__create_projection_matrix(self.aspect_ratio, fov, near, far)
         self.occlussion_enabled = True
+        self.bsp_tree = build_bsp_tree(polygons)
 
     def toggle_occlusion(self) -> None:
         self.occlussion_enabled = not self.occlussion_enabled
@@ -92,8 +94,11 @@ class Camera:
     def draw_scene(self, screen: Surface) -> None:
         polygons_to_draw = self.polygons[:]
         if self.occlussion_enabled:
-            polygons_to_draw.sort(key=lambda polygon: polygon.get_z_centroid(), reverse=True)
-            polygons_to_draw.sort(key=cmp_to_key(self.__compare_polygons_occlusion))
+            sorted_polygons = []
+            traverse_bsp_tree(self.bsp_tree, Vertex(0, 0, 0), sorted_polygons)
+            polygons_to_draw = sorted_polygons
+            # polygons_to_draw.sort(key=lambda polygon: polygon.get_z_centroid(), reverse=True)
+            # polygons_to_draw.sort(key=cmp_to_key(self.__compare_polygons_occlusion))
         for polygon in polygons_to_draw:
             clipped_polygon = self.__clip_polygon(polygon)
             points = []

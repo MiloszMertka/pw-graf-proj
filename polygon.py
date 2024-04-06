@@ -1,3 +1,4 @@
+import numpy as np
 from pygame import Rect
 from vertex import Vertex
 
@@ -36,3 +37,39 @@ class Polygon:
     
     def get_z_centroid(self) -> float:
         return sum([vertex.z for vertex in self.vertices]) / len(self.vertices)
+    
+    def is_wholly_in_front(self, plane_point, plane_normal):
+        for vertex in self.vertices:
+            vertex = vertex.to_vector3()
+            if np.dot(vertex - plane_point, plane_normal) < 0:
+                return False
+        return True
+
+    def is_wholly_behind(self, plane_point, plane_normal):
+        for vertex in self.vertices:
+            vertex = vertex.to_vector3()
+            if np.dot(vertex - plane_point, plane_normal) > 0:
+                return False
+        return True
+
+    def split(self, plane_point, plane_normal):
+        front_vertices = []
+        back_vertices = []
+        last_vertex = self.vertices[-1].to_vector3()
+        last_dot = np.dot(last_vertex - plane_point, plane_normal)
+
+        for vertex in self.vertices:
+            vertex = vertex.to_vector3()
+            dot = np.dot(vertex - plane_point, plane_normal)
+            if dot * last_dot < 0:
+                intersection_vertex = last_vertex + (vertex - last_vertex) * (-last_dot / (dot - last_dot))
+                front_vertices.append(Vertex(intersection_vertex[0], intersection_vertex[1], intersection_vertex[2]))
+                back_vertices.append(Vertex(intersection_vertex[0], intersection_vertex[1], intersection_vertex[2]))
+            if dot >= 0:
+                front_vertices.append(Vertex(vertex[0], vertex[1], vertex[2]))
+            if dot <= 0:
+                back_vertices.append(Vertex(vertex[0], vertex[1], vertex[2]))
+            last_vertex = vertex
+            last_dot = dot
+
+        return Polygon(front_vertices), Polygon(back_vertices)
