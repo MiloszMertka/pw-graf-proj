@@ -1,4 +1,3 @@
-import numpy as np
 from vertex import Vertex
 from polygon import Polygon
 from bsp_node import BSPNode
@@ -16,9 +15,8 @@ class BSPTree:
         if node is None:
             return
 
-        plane_point = node.polygon.vertices[0].to_vector3()
-        plane_normal = np.cross(node.polygon.vertices[1].to_vector3() - plane_point, node.polygon.vertices[2].to_vector3() - plane_point)
-        distance_to_plane = np.dot(plane_point - viewer_position.to_vector3(), plane_normal)
+        plane = node.polygon.calculate_plane()
+        distance_to_plane = plane.distance_to_vertex(viewer_position)
 
         if distance_to_plane > 0:
             self.__traverse_node(node.front, viewer_position, sorted_polygons)
@@ -36,20 +34,20 @@ class BSPTree:
         return root
         
     def __split_polygon(self, node: BSPNode, polygon: Polygon) -> None:
-        plane_point, plane_normal = node.polygon.calculate_plane()
+        plane = node.polygon.calculate_plane()
 
-        if polygon.is_wholly_in_front(plane_point, plane_normal):
+        if polygon.is_wholly_in_front(plane):
             if node.front is None:
                 node.front = BSPNode(polygon)
             else:
                 self.__split_polygon(node.front, polygon)
-        elif polygon.is_wholly_behind(plane_point, plane_normal):
+        elif polygon.is_wholly_behind(plane):
             if node.back is None:
                 node.back = BSPNode(polygon)
             else:
                 self.__split_polygon(node.back, polygon)
         else:
-            front_polygon, back_polygon = polygon.split_by_plane(plane_point, plane_normal)
+            front_polygon, back_polygon = polygon.split_by_plane(plane)
             if node.front is None:
                 node.front = BSPNode(front_polygon)
             else:
