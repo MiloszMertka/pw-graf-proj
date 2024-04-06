@@ -7,7 +7,7 @@ class Vertex:
         self.z = z
         self.w = 1
 
-    def to_vector(self) -> np.ndarray:
+    def to_vector4(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z, self.w])
     
     def to_vector3(self) -> np.ndarray:

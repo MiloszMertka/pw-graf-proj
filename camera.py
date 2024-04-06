@@ -113,7 +113,7 @@ class Camera:
                 self.__rotate_vertex(vertex, rotation_matrix)
 
     def __rotate_vertex(self, vertex: Vertex, rotation_matrix: np.ndarray) -> None:
-        v = vertex.to_vector()
+        v = vertex.to_vector4()
         rotated_v = rotation_matrix @ v
         normalized_v = self.__normalize_vector(rotated_v)
         vertex.x = normalized_v[0]
@@ -180,7 +180,7 @@ class Camera:
         return Vertex(intersection_point[0], intersection_point[1], intersection_point[2])
 
     def __project_point(self, point: Vertex) -> np.ndarray:
-        vector = point.to_vector()
+        vector = point.to_vector4()
         projected_vector = self.projection_matrix @ vector
         normalized_vector = self.__normalize_vector(projected_vector)
         return self.__convert_vector_to_point(normalized_vector)

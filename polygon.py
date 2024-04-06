@@ -25,7 +25,7 @@ class Polygon:
                 return False
         return True
 
-    def split(self, plane_point: np.ndarray, plane_normal: np.ndarray) -> tuple['Polygon', 'Polygon']:
+    def split_by_plane(self, plane_point: np.ndarray, plane_normal: np.ndarray) -> tuple['Polygon', 'Polygon']:
         front_vertices = []
         back_vertices = []
         last_vertex = self.vertices[-1].to_vector3()
@@ -46,3 +46,8 @@ class Polygon:
             last_dot = dot
 
         return Polygon(front_vertices), Polygon(back_vertices)
+    
+    def calculate_plane(self) -> tuple[np.ndarray, np.ndarray]:
+        plane_point = self.vertices[0].to_vector3()
+        plane_normal = np.cross(self.vertices[1].to_vector3() - plane_point, self.vertices[2].to_vector3() - plane_point)
+        return plane_point, plane_normal

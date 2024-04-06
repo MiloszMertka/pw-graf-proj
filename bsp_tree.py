@@ -36,8 +36,7 @@ class BSPTree:
         return root
         
     def __split_polygon(self, node: BSPNode, polygon: Polygon) -> None:
-        plane_point = node.polygon.vertices[0].to_vector3()
-        plane_normal = np.cross(node.polygon.vertices[1].to_vector3() - plane_point, node.polygon.vertices[2].to_vector3() - plane_point)
+        plane_point, plane_normal = node.polygon.calculate_plane()
 
         if polygon.is_wholly_in_front(plane_point, plane_normal):
             if node.front is None:
@@ -50,7 +49,7 @@ class BSPTree:
             else:
                 self.__split_polygon(node.back, polygon)
         else:
-            front_polygon, back_polygon = polygon.split(plane_point, plane_normal)
+            front_polygon, back_polygon = polygon.split_by_plane(plane_point, plane_normal)
             if node.front is None:
                 node.front = BSPNode(front_polygon)
             else:
