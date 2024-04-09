@@ -1,6 +1,7 @@
 import pygame
 from sphere_camera import SphereCamera
 from keyboard_handler import KeyboardHandler
+from example_materials import metal_material
 
 BLACK = (0, 0, 0)
 WIDTH, HEIGHT = 800, 800
@@ -13,7 +14,7 @@ def main():
 
     screen_center = (WIDTH // 2, HEIGHT // 2)
 
-    camera = SphereCamera(screen_center)
+    camera = SphereCamera(screen_center, metal_material)
     keyboard_handler = KeyboardHandler(camera)
     clock = pygame.time.Clock()
 
